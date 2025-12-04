@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #pragma once
 #include <iostream>
 #include <string>
@@ -52,6 +52,8 @@ class AuthSystem {
 public:
     std::vector<User> users;
     Hash passwordHasher;
+    std::string currentUsername;
+    User currentUserData;
 
     AuthSystem();
     ~AuthSystem();
@@ -59,4 +61,11 @@ public:
     bool userExists(std::string& username);
     bool registerUser();
     bool loginUser();
+
+    std::string getCurrentUsername() const { return currentUsername; }
+    const User& getCurrentUser() const { return currentUserData; }
+    void logout() {
+        currentUsername = "";
+        currentUserData = User();
+    }
 };

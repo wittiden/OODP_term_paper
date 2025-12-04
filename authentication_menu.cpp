@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 
-static AuthSystem authSystem;
+AuthSystem authSystem;
 
 bool auth_term_paper_menu() {
     bool userAuthenticated = false;
@@ -25,8 +25,6 @@ bool auth_term_paper_menu() {
             }
             break;
         case AUTH_LOGIN:
-
-
             if (authSystem.loginUser()) {
                 userAuthenticated = true;
             }

@@ -54,6 +54,10 @@ bool check_int_input(const std::string& s) {
     }
     return s.size() < MAX_INT32.size() || (s.size() == MAX_INT32.size() && s <= MAX_INT32);
 }
+bool check_bool_input(const std::string& s)
+{
+    return s.size() == 1 && (s[0] == '0' || s[0] == '1');
+}
 bool check_onlyNegative_int_input(const std::string& s) {
     if (s.empty() || s[0] != '-') return false;
     std::string num = s.substr(1);

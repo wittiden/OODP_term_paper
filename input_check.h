@@ -14,6 +14,7 @@ double Stod(const std::string& s);
 
 bool check_unsigned_input(const std::string& s);
 bool check_int_input(const std::string& s);
+bool check_bool_input(const std::string& s);
 bool check_onlyNegative_int_input(const std::string& s);
 bool check_onlyPositive_int_input(const std::string& s);
 bool check_double_float_input(const std::string& s);
@@ -64,6 +65,15 @@ bool number_filteredInput(T& result, bool requireNegative = false, bool requireP
                         return true;
                     }
                 }
+                else if constexpr (std::is_same_v<T, bool>) {
+                    if (check_bool_input(buf)) {
+                        result = (buf[0] == '1');
+                        std::cout << std::endl;
+
+                        while (_kbhit()) _getch();
+                        return true;
+                    }
+                }
                 else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>) {
                     if (check_double_float_input(buf)) {
                         result = Stod(buf);
@@ -93,6 +103,12 @@ bool number_filteredInput(T& result, bool requireNegative = false, bool requireP
                     buf += char(c);
                     std::cout << char(c);
                 }
+            }
+        }
+        else if constexpr (std::is_same_v<T, bool>) {
+            if ((c == '0' || c == '1') && buf.empty()) {
+                buf += char(c);
+                std::cout << char(c);
             }
         }
         else if constexpr (std::is_same_v<T, int>) {

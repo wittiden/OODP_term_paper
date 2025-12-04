@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-size_t User::count = 1;
+size_t User::count = 0;
 
 // Hash
 int Hash::receivingExistCodes(int x) {
@@ -76,7 +76,6 @@ bool AuthSystem::userExists(std::string& username) {
     }
     return false;
 }
-
 bool AuthSystem::registerUser() {
     std::string fullname, username, password;
 
@@ -96,9 +95,15 @@ bool AuthSystem::registerUser() {
     letter_filteredInput<std::string>(password, 0, 0, 1, 1);
 
     std::string hashedPassword = passwordHasher.GetHash(password, 16);
-    users.emplace_back(fullname, username, hashedPassword, false);
+    User newUser(fullname, username, hashedPassword, false);
+    users.emplace_back(newUser);
 
-    std::cout << "\nПользователь успешно зарегистрирован! ID: " << users.back().getId() << "\n";
+    currentUsername = username;
+    currentUserData = newUser;
+
+    std::cout << "\nПользователь успешно зарегистрирован и вошел в систему!" << std::endl;
+    std::cout << "ID: " << newUser.getId() << std::endl;
+    std::cout << "Добро пожаловать, " << fullname << "!\n";
     system("pause");
     return true;
 }
@@ -151,7 +156,11 @@ bool AuthSystem::loginUser() {
             if (container.getUsername() == username && container.getPasswordHash() == hashedPassword) {
                 password_correct = true;
                 password_flag = true;
+                currentUsername = username;
+                currentUserData = container;
                 std::cout << "\nУспешный вход!\n";
+                std::cout << "Добро пожаловать, " << container.getFullname() << "!\n";
+                system("pause");
                 return true;
             }
         }

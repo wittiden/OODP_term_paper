@@ -3,6 +3,10 @@
 #include <vector>
 #include <string>
 
+#include "realestate.h"
+
+RealEstateManager rem;
+
 void user_term_paper_menu() {
     bool user_term_paper_menu_flag = false;
     while (!user_term_paper_menu_flag) {
@@ -21,19 +25,23 @@ void user_term_paper_menu() {
 
         switch (user_term_paper_menu_choice) {
         case USER_RATE_PROPERTY:
-            // Реализация
+            rem.calculateObjectRating();
+            system("pause");
             break;
         case USER_EDIT_RATING:
-            // Реализация
+            rem.changeObjectRating("user");
             break;
         case USER_DELETE_RATING:
-            // Реализация
+            rem.deleteObjectRating("user");
+            system("pause");
             break;
         case USER_VIEW_MY_RATINGS:
-            // Реализация
+            rem.displayUserObj();
+            system("pause");
             break;
         case USER_VIEW_ALL_PROPERTIES:
-            // Реализация
+            rem.displayObj();
+            system("pause");
             break;
         case USER_SORT_BY_RATING:
             // Реализация
@@ -65,8 +73,7 @@ void admin_term_paper_menu() {
             "Добавить объект недвижимости",
             "Редактировать объект недвижимости",
             "Удалить объект недвижимости",
-            "Просмотр статистики",
-            "Просмотр всех оценок",
+            "Просмотр всей иноформации",
             "Сортировка по рейтингу",
             "Фильтрация по параметрам",
             "Выйти в главное меню",
@@ -79,25 +86,25 @@ void admin_term_paper_menu() {
             user_mgmt_term_paper_menu();
             break;
         case ADMIN_EDIT_ANY_RATING:
-            // Реализация
+            rem.changeObjectRating("admin");
             break;
         case ADMIN_DELETE_ANY_RATING:
-            // Реализация
+            rem.deleteObjectRating("admin");
             break;
         case ADMIN_ADD_PROPERTY:
-            // Реализация
+            rem.addObj();
+            rem.displayObj();
+            system("pause");
             break;
         case ADMIN_EDIT_PROPERTY:
-            // Реализация
+            rem.changeObj();
             break;
         case ADMIN_DELETE_PROPERTY:
-            // Реализация
+            rem.deleteObj();
             break;
-        case ADMIN_VIEW_STATISTICS:
-            // Реализация
-            break;
-        case ADMIN_VIEW_ALL_RATINGS:
-            // Реализация
+        case ADMIN_VIEW_ALL_INFO:
+            rem.displayObj();
+            system("pause");
             break;
         case ADMIN_SORT_BY_RATING:
             // Реализация
@@ -127,7 +134,6 @@ void user_mgmt_term_paper_menu() {
             "Блокировка пользователя",
             "Разблокировка пользователя",
             "Удаление пользователя",
-            "Просмотр статистики пользователя",
             "Выйти в предыдущее меню",
             "Выйти из программы"
         };
@@ -144,9 +150,6 @@ void user_mgmt_term_paper_menu() {
             // Реализация
             break;
         case USER_MGMT_DELETE_USER:
-            // Реализация
-            break;
-        case USER_MGMT_VIEW_USER_STATS:
             // Реализация
             break;
         case USER_MGMT_EXIT:

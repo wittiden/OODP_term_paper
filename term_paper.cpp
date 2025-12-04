@@ -16,4 +16,4 @@ int main()
 	main_term_paper_menu();
 
 	return 0;
-}
+} 

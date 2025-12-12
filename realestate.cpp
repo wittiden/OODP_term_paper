@@ -2,8 +2,10 @@
 #include "functions.h"
 #include <iostream>
 #include <vector>
-#include "authentication_menu.h"
+#include "secondary_menu.h"
+#include "database_manager.h"
 
+DatabaseManager dbManager;
 extern AuthSystem authSystem;
 size_t RealEstate::est_count = 1;
 std::vector<Apartment> RealEstateManager::apartments;
@@ -146,7 +148,7 @@ void RealEstateManager::addObj() {
     int floor;
     bool hasElevator;
     int choice;
-    std::string fullUsername;
+    std::string fullUsername = authSystem.getCurrentUser().getFullname();
 
     bool validArea = false;
     bool validRooms = false;
@@ -229,10 +231,16 @@ void RealEstateManager::addObj() {
         apart.calculateRating();
         apartments.push_back(apart);
 
-        std::cout << "------------------------" << std::endl;
-        std::cout << "[ УСПЕХ ] Объект добавлен!" << std::endl;
-        std::cout << "  ID квартиры: " << apart.getEst_id() << std::endl;
-        std::cout << "  Всего квартир в базе: " << apartments.size() << std::endl;
+        if (dbManager.saveApartment(apart)) {
+            std::cout << "------------------------" << std::endl;
+            std::cout << "[ УСПЕХ ] Объект добавлен в базу данных!" << std::endl;
+            std::cout << "  ID квартиры: " << apart.getEst_id() << std::endl;
+            std::cout << "  Всего квартир в базе: " << apartments.size() << std::endl;
+        }
+        else {
+            std::cerr << "[ ОШИБКА ] Не удалось сохранить квартиру в базу данных!" << std::endl;
+            apartments.pop_back();
+        }
 
         validArea = false;
         validRooms = false;
@@ -321,9 +329,14 @@ void RealEstateManager::deleteObj()
             bool found = false;
             for (auto it = apartments.begin(); it != apartments.end(); ++it) {
                 if (delete_id == it->getEst_id()) {
-                    apartments.erase(it);
-                    found = true;
-                    std::cout << "[ УСПЕХ ] Квартира с ID " << delete_id << " удалена." << std::endl;
+                    if (dbManager.deleteApartment(delete_id)) {
+                        apartments.erase(it);
+                        found = true;
+                        std::cout << "[ УСПЕХ ] Квартира с ID " << delete_id << " удалена из базы данных." << std::endl;
+                    }
+                    else {
+                        std::cerr << "[ ОШИБКА ] Не удалось удалить квартиру из базы данных." << std::endl;
+                    }
                     break;
                 }
             }
@@ -389,6 +402,7 @@ void RealEstateManager::changeObj() {
             for (auto it = apartments.begin(); it != apartments.end(); ++it) {
                 if (change_id == it->getEst_id()) {
                     int saved_id = change_id;
+                    Apartment oldApartment = *it;
 
                     apartments.erase(it);
 
@@ -401,7 +415,7 @@ void RealEstateManager::changeObj() {
                     int commissYear;
                     int floor;
                     bool hasElevator;
-                    std::string fullUsername;
+                    std::string fullUsername = authSystem.getCurrentUser().getFullname();
 
                     bool validArea = false;
                     bool validRooms = false;
@@ -483,9 +497,16 @@ void RealEstateManager::changeObj() {
                     apart.setEst_id(saved_id);
                     apartments.push_back(apart);
 
-                    RealEstate::est_count--;
+                    if (dbManager.updateApartment(apart)) {
+                        apartments.push_back(apart);
+                        RealEstate::est_count--;
 
-                    std::cout << "[ УСПЕХ ] Квартира с ID " << saved_id << " изменена." << std::endl;
+                        std::cout << "[ УСПЕХ ] Квартира с ID " << saved_id << " изменена в базе данных." << std::endl;
+                    }
+                    else {
+                        apartments.push_back(oldApartment);
+                        std::cerr << "[ ОШИБКА ] Не удалось обновить квартиру в базе данных." << std::endl;
+                    }
                     break;
                 }
             }
@@ -702,6 +723,13 @@ double RealEstateManager::calculateObjectRating() {
                 double systemRating = it->calculateRating();
 
                 it->setUserRating(userNormalizedRating);
+
+                if (dbManager.updateApartmentRating(it->getEst_id(), userNormalizedRating, fullUsername)) {
+                    std::cout << "\n[ УСПЕХ ] Рейтинг сохранен в базе данных!" << std::endl;
+                }
+                else {
+                    std::cerr << "\n[ ОШИБКА ] Не удалось сохранить рейтинг в базу данных!" << std::endl;
+                }
 
                 std::cout << "\n==================================================" << std::endl;
                 std::cout << "          РЕЗУЛЬТАТЫ ОЦЕНКИ               " << std::endl;
@@ -983,9 +1011,12 @@ void RealEstateManager::deleteObjectRating(std::string type) {
                     if (confirm == 1) {
                         it->setUserRating(0.0);
 
-                        std::cout << "\n[ УСПЕХ ] Ваша оценка для квартиры с ID "
-                            << find_id << " успешно удалена." << std::endl;
-                        std::cout << "[ ИНФОРМАЦИЯ ] Теперь будет использоваться только системный рейтинг." << std::endl;
+                        if (dbManager.deleteApartmentRating(find_id)) {
+                            std::cout << "\n[ УСПЕХ ] Пользовательская оценка для квартиры с ID " << find_id << " успешно удалена из базы данных." << std::endl;
+                        }
+                        else {
+                            std::cerr << "\n[ ОШИБКА ] Не удалось удалить оценку из базы данных." << std::endl;
+                        }
 
                         return;
                     }
@@ -1021,6 +1052,7 @@ void RealEstateManager::deleteObjectRating(std::string type) {
 
     } while (!validChoice);
 }
+
 double RealEstateManager::changeObjectRating(std::string type) {
     if (apartments.empty()) {
         std::cout << "[ СПИСОК КВАРТИР ПУСТ ]\n";
@@ -1224,7 +1256,31 @@ double RealEstateManager::changeObjectRating(std::string type) {
 
                     double systemRating = it->calculateRating();
 
+                    double oldRating = it->getUserRating();
+                    std::string oldUsername = it->getFullUsername();
                     it->setUserRating(userNormalizedRating);
+
+                    std::string usernameToSave = it->getFullUsername();
+                    if (dbManager.updateApartmentRating(it->getEst_id(), userNormalizedRating, usernameToSave)) {
+                        std::cout << "\n[ УСПЕХ ] Рейтинг обновлен в базе данных!" << std::endl;
+                        std::cout << "  ID квартиры: " << it->getEst_id() << std::endl;
+                        std::cout << "  Новый рейтинг: " << userNormalizedRating << "/10" << std::endl;
+                    }
+                    else {
+                        it->setUserRating(oldRating);
+                        std::cerr << "\n[ ОШИБКА БАЗЫ ДАННЫХ ] Не удалось обновить рейтинг в базе данных!" << std::endl;
+                        std::cerr << "  Ошибка: " << dbManager.getLastError() << std::endl;
+
+                        std::cout << "\n==================================================" << std::endl;
+                        std::cout << "          РЕЗУЛЬТАТЫ ОЦЕНКИ               " << std::endl;
+                        std::cout << "==================================================" << std::endl;
+                        std::cout << "Ваш рейтинг (не сохранен): " << userNormalizedRating << "/10" << std::endl;
+                        std::cout << "Системный рейтинг (АИС): " << systemRating << "/10" << std::endl;
+                        std::cout << "Разница: " << std::abs(systemRating - userNormalizedRating) << " баллов" << std::endl;
+                        std::cout << "==================================================" << std::endl;
+
+                        return 0.0;
+                    }
 
                     std::cout << "\n==================================================" << std::endl;
                     std::cout << "          РЕЗУЛЬТАТЫ ОЦЕНКИ               " << std::endl;
@@ -1436,7 +1492,28 @@ double RealEstateManager::changeObjectRating(std::string type) {
 
                     double systemRating = it->calculateRating();
 
+                    double oldRating = it->getUserRating();
                     it->setUserRating(userNormalizedRating);
+                    if (dbManager.updateApartmentRating(it->getEst_id(), userNormalizedRating, currentUsername)) {
+                        std::cout << "\n[ УСПЕХ ] Ваш рейтинг обновлен в базе данных!" << std::endl;
+                        std::cout << "  ID квартиры: " << it->getEst_id() << std::endl;
+                        std::cout << "  Новый рейтинг: " << userNormalizedRating << "/10" << std::endl;
+                    }
+                    else {
+                        it->setUserRating(oldRating);
+                        std::cerr << "\n[ ОШИБКА БАЗЫ ДАННЫХ ] Не удалось обновить рейтинг в базе данных!" << std::endl;
+                        std::cerr << "  Ошибка: " << dbManager.getLastError() << std::endl;
+
+                        std::cout << "\n==================================================" << std::endl;
+                        std::cout << "          РЕЗУЛЬТАТЫ ОЦЕНКИ               " << std::endl;
+                        std::cout << "==================================================" << std::endl;
+                        std::cout << "Ваш рейтинг (не сохранен): " << userNormalizedRating << "/10" << std::endl;
+                        std::cout << "Системный рейтинг (АИС): " << systemRating << "/10" << std::endl;
+                        std::cout << "Разница: " << std::abs(systemRating - userNormalizedRating) << " баллов" << std::endl;
+                        std::cout << "==================================================" << std::endl;
+
+                        return 0.0;
+                    }
 
                     std::cout << "\n==================================================" << std::endl;
                     std::cout << "          РЕЗУЛЬТАТЫ ОЦЕНКИ               " << std::endl;
@@ -1545,4 +1622,157 @@ void RealEstateManager::displayUserObj()
     std::cout << "  Ваших оцененных квартир: " << totalRatedApartments << std::endl;
 
     std::cout << "==================================================" << std::endl;
+}
+
+void RealEstateManager::filterObj() {
+    if (apartments.empty()) {
+        std::cout << "\n[ ВНИМАНИЕ ] База данных квартир пуста!" << std::endl;
+        system("pause");
+        return;
+    }
+
+    bool defaultParams[9] = { false };
+
+    showFilteredResults(defaultParams);
+}
+
+void RealEstateManager::showFilteredResults(bool selectedParams[]) {
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "          ОТФИЛЬТРОВАННЫЕ КВАРТИРЫ                " << std::endl;
+    std::cout << "==================================================" << std::endl;
+    bool anyParamSelected = false;
+
+    for (int i = 0; i < 9; i++) {
+        if (selectedParams[i]) {
+            anyParamSelected = true;
+        }
+    }
+
+    if (!anyParamSelected) {
+        std::cout << "Не выбрано ни одного параметра!" << std::endl;
+        std::cout << "Будет показан только ID квартир." << std::endl;
+    }
+
+    int counter = 1;
+    for (const auto& apartment : apartments) {
+        std::cout << "\n[ КВАРТИРА №" << counter << " ]" << std::endl;
+        std::cout << "--------------------------------------------------" << std::endl;
+
+        std::cout << "ID: " << apartment.getEst_id() << std::endl;
+
+        if (selectedParams[0]) {
+            std::cout << "Адрес: " << apartment.getAddress() << std::endl;
+        }
+        if (selectedParams[1]) {
+            std::cout << "Площадь: " << apartment.getArea() << " м2" << std::endl;
+        }
+        if (selectedParams[2]) {
+            std::cout << "Комнат: " << apartment.getRooms() << std::endl;
+        }
+        if (selectedParams[3]) {
+            std::cout << "Цена: " << apartment.getPrice() << " $" << std::endl;
+        }
+        if (selectedParams[4]) {
+            std::cout << "Год ввода: " << apartment.getCommissYear() << std::endl;
+        }
+        if (selectedParams[5]) {
+            std::cout << "Этаж: " << apartment.getFloor() << std::endl;
+        }
+        if (selectedParams[6]) {
+            std::cout << "Лифт: " << (apartment.getHasElevator() ? "Да" : "Нет") << std::endl;
+        }
+        if (selectedParams[7]) {
+            std::cout << "Рейтинг АИС: " << apartment.calculateRating() << "/10" << std::endl;
+        }
+        if (selectedParams[8]) {
+            if (apartment.hasUserRating()) {
+                std::cout << "Рейтинг пользователя: " << apartment.getUserRating() << "/10" << std::endl;
+            }
+            else {
+                std::cout << "Рейтинг пользователя: нет оценки" << std::endl;
+            }
+        }
+        counter++;
+    }
+
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "[ ИТОГО ] Показано квартир: " << apartments.size() << std::endl;
+    std::cout << "==================================================" << std::endl;
+
+    system("pause");
+}
+void RealEstateManager::sortByRating() {
+    if (apartments.empty()) {
+        std::cout << "\n[ ВНИМАНИЕ ] База данных квартир пуста!" << std::endl;
+        system("pause");
+        return;
+    }
+    if (apartments.size() < 2) {
+        std::cout << "\n[ ИНФОРМАЦИЯ ] В базе только " << apartments.size()
+            << " квартира. Сортировка не требуется." << std::endl;
+        system("pause");
+        return;
+    }
+
+    std::vector<Apartment> sortedApartments = apartments;
+
+    int n = sortedApartments.size();
+
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "     СОРТИРОВКА КВАРТИР ПО РЕЙТИНГУ АИС          " << std::endl;
+    std::cout << "==================================================" << std::endl;
+    std::cout << "Метод: пузырьковая сортировка (по убыванию)" << std::endl;
+    std::cout << "Количество элементов для сортировки: " << n << std::endl;
+    std::cout << "--------------------------------------------------" << std::endl;
+
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            double rating1 = sortedApartments[j].calculateRating();
+            double rating2 = sortedApartments[j + 1].calculateRating();
+            if (rating1 < rating2) {
+                std::swap(sortedApartments[j], sortedApartments[j + 1]);
+            }
+        }
+    }
+
+    std::cout << "\n[ УСПЕХ ] Сортировка завершена!" << std::endl;
+    std::cout << "==================================================" << std::endl;
+
+    displaySortedApartments(sortedApartments);
+    system("pause");
+}
+
+void RealEstateManager::displaySortedApartments(const std::vector<Apartment>& sortedApartments) {
+    std::cout << "\n==================================================" << std::endl;
+    std::cout << "     ОТСОРТИРОВАННЫЕ КВАРТИРЫ ПО РЕЙТИНГУ        " << std::endl;
+    std::cout << "==================================================" << std::endl;
+    std::cout << "Порядок: от наибольшего рейтинга к наименьшему" << std::endl;
+    std::cout << "--------------------------------------------------" << std::endl;
+
+    int counter = 1;
+    for (const auto& apartment : sortedApartments) {
+        std::cout << "\n[ КВАРТИРА №" << counter << " ]" << std::endl;
+        std::cout << "--------------------------------------------------" << std::endl;
+        std::cout << "Рейтинг АИС: " << apartment.calculateRating() << "/10" << std::endl;
+        std::cout << "ID: " << apartment.getEst_id() << std::endl;
+        std::cout << "Адрес: " << apartment.getAddress() << std::endl;
+        std::cout << "Площадь: " << apartment.getArea() << " м2" << std::endl;
+        std::cout << "Комнат: " << apartment.getRooms() << std::endl;
+        std::cout << "Цена: " << apartment.getPrice() << " $" << std::endl;
+
+        counter++;
+    }
+}
+void RealEstateManager::loadFromDatabase() {
+    apartments = dbManager.loadApartments();
+
+    if (!apartments.empty()) {
+        int maxId = 0;
+        for (const auto& apartment : apartments) {
+            if (apartment.getEst_id() > maxId) {
+                maxId = apartment.getEst_id();
+            }
+        }
+        RealEstate::est_count = maxId + 1;
+    }
 }

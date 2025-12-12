@@ -75,8 +75,17 @@ public:
     void displayObj();
     void deleteObj();
     void changeObj();
+
     double calculateObjectRating();
     void deleteObjectRating(std::string type);
     double changeObjectRating(std::string type);
     void displayUserObj();
+
+    void filterObj();
+    void showFilteredResults(bool selectedParams[]);
+
+    void sortByRating();
+    void displaySortedApartments(const std::vector<Apartment>& sortedApartments);
+
+    void loadFromDatabase();
 };

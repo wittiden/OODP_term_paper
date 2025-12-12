@@ -6,10 +6,12 @@
 #include <vector>
 #include <algorithm>
 #include "input_check.h"
+#include "database_manager.h"
 
 class Hash;
 class User;
 class AuthSystem;
+class DatabaseManager;
 
 class Hash {
     std::string hash;
@@ -46,14 +48,18 @@ public:
     void setUsername(const std::string& username);
     void setPasswordHash(const std::string& passwordHash);
     void setIsBlocked(bool isBlocked);
+    void setId(int id);
+
+    void displayInfo() const;
 };
 
 class AuthSystem {
-public:
-    std::vector<User> users;
+    DatabaseManager* dbManager;
     Hash passwordHasher;
     std::string currentUsername;
     User currentUserData;
+public:
+    std::vector<User> users;
 
     AuthSystem();
     ~AuthSystem();
@@ -68,4 +74,12 @@ public:
         currentUsername = "";
         currentUserData = User();
     }
+
+    void displayUserInfo();
+    void deleteUser();
+    void blockUser();
+    void unblockUser();
+
+    bool saveAllData();
+    bool loadAllData();
 };
